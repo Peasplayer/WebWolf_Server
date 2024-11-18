@@ -21,6 +21,7 @@ public class NetworkManager
         var server = new WebSocketServer("ws://127.0.0.1:" + port);
         server.Start(socket =>
         {
+            socket.OnError = error => OnClose(socket);
             socket.OnOpen = () => OnOpen(socket);
             socket.OnClose = () => OnClose(socket);
             socket.OnMessage = message => OnMessage(socket, message);
