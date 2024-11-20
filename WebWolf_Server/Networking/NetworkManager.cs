@@ -8,12 +8,12 @@ public class NetworkManager
 {
     public static NetworkManager Instance;
     
-    private Dictionary<Guid, IWebSocketConnection> ConnectedClients;
+    private Dictionary<string, IWebSocketConnection> ConnectedClients;
 
     public NetworkManager()
     {
         Instance = this;
-        ConnectedClients = new Dictionary<Guid, IWebSocketConnection>();
+        ConnectedClients = new Dictionary<string, IWebSocketConnection>();
     }
     
     public void StartWebsocket(int port)
@@ -21,37 +21,40 @@ public class NetworkManager
         var server = new WebSocketServer("ws://127.0.0.1:" + port);
         server.Start(socket =>
         {
-            socket.OnError = error => OnClose(socket);
+            socket.OnError = error =>
+            {
+                Console.WriteLine("ERROR" + error);
+                OnClose(socket);
+            };
             socket.OnOpen = () => OnOpen(socket);
-            socket.OnClose = () => OnClose(socket);
+            socket.OnClose = () =>
+            {
+                Console.WriteLine("CLOSE");
+                OnClose(socket);
+            };
             socket.OnMessage = message => OnMessage(socket, message);
         });
     }
     
     private void OnOpen(IWebSocketConnection socket)
     {
-        var clientId = socket.ConnectionInfo.Id;
+        var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Connected: {0}", clientId);
-        socket.Send(JsonConvert.SerializeObject(new HandshakePacket("server", clientId.ToString())));
-
-        var playerList = "";
-        foreach (var (id, name) in PlayerManager.Players)
-        {
-            playerList += "{'ID': '" + id + "', 'Name': '" + name + "'},";
-        }
-        socket.Send(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SyncLobby, 
-            "{'Players': [" + playerList + "]}")));
+        socket.Send(JsonConvert.SerializeObject(new HandshakePacket("server", clientId)));
         
-        PlayerManager.Players.Add(clientId.ToString(), "");
+        PlayerData.Players.Add(new PlayerData(null, clientId));
         ConnectedClients.Add(clientId, socket);
     }
 
     private void OnClose(IWebSocketConnection socket)
     {
-        var clientId = socket.ConnectionInfo.Id;
+        var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Disconnected: {0}", clientId);
-        PlayerManager.Players.Remove(clientId.ToString());
+        
+        PlayerData.Players.Remove(PlayerData.GetPlayer(clientId));
         ConnectedClients.Remove(clientId);
+        
+        Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'ID': '" + clientId +"'}")));
     }
 
     private void OnMessage(IWebSocketConnection socket, string message)
@@ -68,7 +71,15 @@ public class NetworkManager
                 if (handshake == null)
                     return;
                 
-                PlayerManager.Players[handshake.Sender] = handshake.Name;
+                PlayerData.GetPlayer(handshake.Sender)?.SetName(handshake.Name);
+
+                var playerList = "";
+                foreach (var player in PlayerData.Players)
+                {
+                    playerList += "{'ID': '" + player.Id + "', 'Name': '" + player.Name + "'},";
+                }
+                SendTo(handshake.Sender, JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SyncLobby, 
+                    "{'Players': [" + playerList + "]}")));
                 Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Join, 
                     "{'ID': '" + handshake.Sender + "', 'Name': '" + handshake.Name + "' }")));
                 break;
@@ -80,7 +91,7 @@ public class NetworkManager
                 if (parsedPacket == null)
                     return;
 
-                var receiver = Guid.Parse(parsedPacket.Receiver);
+                var receiver = parsedPacket.Receiver;
                 if (ConnectedClients.ContainsKey(receiver))
                     SendTo(receiver, message);
                 break;
@@ -89,6 +100,7 @@ public class NetworkManager
 
     public void Broadcast(string message)
     {
+        Console.WriteLine("Broadcasting to " + ConnectedClients.Count + " : " + message);
         for (var i = 0; i < ConnectedClients.Count; i++)
         {
             var client = ConnectedClients.Values.ToArray()[i];
@@ -99,7 +111,7 @@ public class NetworkManager
         }
     }
 
-    public void SendTo(Guid id, string message)
+    public void SendTo(string id, string message)
     {
         var client = ConnectedClients[id];
         if (client.IsAvailable)
