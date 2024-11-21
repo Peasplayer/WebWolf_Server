@@ -50,11 +50,15 @@ public class NetworkManager
     {
         var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Disconnected: {0}", clientId);
+        var player = PlayerData.GetPlayer(clientId);
         
         PlayerData.Players.Remove(PlayerData.GetPlayer(clientId));
         ConnectedClients.Remove(clientId);
         
-        Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'ID': '" + clientId +"'}")));
+        if (PlayerData.Players.Count > 0)
+            PlayerData.Players[0].SetHost();
+        
+        Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
     }
 
     private void OnMessage(IWebSocketConnection socket, string message)
@@ -76,12 +80,17 @@ public class NetworkManager
                 var playerList = "";
                 foreach (var player in PlayerData.Players)
                 {
-                    playerList += "{'ID': '" + player.Id + "', 'Name': '" + player.Name + "'},";
+                    playerList += "{'Id': '" + player.Id + "', 'Name': '" + player.Name + "', " +
+                                  "'IsHost': " + player.IsHost.ToString().ToLower() + "},";
                 }
                 SendTo(handshake.Sender, JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SyncLobby, 
                     "{'Players': [" + playerList + "]}")));
                 Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Join, 
-                    "{'ID': '" + handshake.Sender + "', 'Name': '" + handshake.Name + "' }")));
+                    "{'Id': '" + handshake.Sender + "', 'Name': '" + handshake.Name + "' }")));
+                if (PlayerData.Players.Count == 1)
+                {
+                    PlayerData.GetPlayer(handshake.Sender)?.SetHost();
+                }
                 break;
             case PacketType.Broadcast:
                 Broadcast(message);
