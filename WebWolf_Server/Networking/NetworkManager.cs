@@ -75,8 +75,8 @@ public class NetworkManager
                 if (handshake == null)
                     return;
                 
-                string uniqueName = UniqueName(handshake.Name);
                 
+                string uniqueName = UniqueName(handshake.Name);
                 PlayerData.GetPlayer(handshake.Sender)?.SetName(uniqueName);
 
                 var playerList = "";
