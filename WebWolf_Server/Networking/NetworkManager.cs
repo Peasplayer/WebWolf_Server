@@ -55,10 +55,10 @@ public class NetworkManager
         PlayerData.Players.Remove(PlayerData.GetPlayer(clientId));
         ConnectedClients.Remove(clientId);
         
+        Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
+        
         if (PlayerData.Players.Count > 0)
             PlayerData.Players[0].SetHost();
-        
-        Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
     }
 
     private void OnMessage(IWebSocketConnection socket, string message)
