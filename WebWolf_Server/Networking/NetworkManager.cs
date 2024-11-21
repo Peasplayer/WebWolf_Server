@@ -75,7 +75,9 @@ public class NetworkManager
                 if (handshake == null)
                     return;
                 
-                PlayerData.GetPlayer(handshake.Sender)?.SetName(handshake.Name);
+                string uniqueName = UniqueName(handshake.Name);
+                
+                PlayerData.GetPlayer(handshake.Sender)?.SetName(uniqueName);
 
                 var playerList = "";
                 foreach (var player in PlayerData.Players)
@@ -127,5 +129,23 @@ public class NetworkManager
             client.Send(message);
         else
             ConnectedClients.Remove(id);
+    }
+
+    private string UniqueName(string name)
+    {
+        var vorhandeneNamen = PlayerData.Players.Select(p => p.Name).ToList();
+        if (!vorhandeneNamen.Contains(name))
+            return name;
+
+        int count = 1;
+        string newName = name;
+        while (vorhandeneNamen.Contains(newName))
+        {
+            newName = name + count;
+            count++;
+        }
+
+        return newName;
+
     }
 }
