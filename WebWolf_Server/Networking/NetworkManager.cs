@@ -64,7 +64,7 @@ public class NetworkManager
     private void OnMessage(IWebSocketConnection socket, string message)
     {
         Console.WriteLine("Message: {0}", message);
-        var packet = JsonConvert.DeserializeObject<Packet>(message);
+        var packet = JsonConvert.DeserializeObject<Packet>(message);    
         if (packet == null)
             return;
             
@@ -88,7 +88,7 @@ public class NetworkManager
                 SendTo(handshake.Sender, JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SyncLobby, 
                     "{'Players': [" + playerList + "]}")));
                 Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Join, 
-                    "{'Id': '" + handshake.Sender + "', 'Name': '" + handshake.Name + "' }")));
+                    "{'Id': '" + handshake.Sender + "', 'Name': '" + uniqueName + "' }")));
                 if (PlayerData.Players.Count == 1)
                 {
                     PlayerData.GetPlayer(handshake.Sender)?.SetHost();
@@ -137,7 +137,7 @@ public class NetworkManager
         if (!vorhandeneNamen.Contains(name))
             return name;
 
-        int count = 1;
+        int count = 2;
         string newName = name;
         while (vorhandeneNamen.Contains(newName))
         {
