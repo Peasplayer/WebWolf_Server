@@ -18,7 +18,7 @@ public class NetworkManager
     
     public void StartWebsocket(int port)
     {
-        var server = new WebSocketServer("ws://127.0.0.1:" + port);
+        var server = new WebSocketServer("ws://0.0.0.0:" + port);
         server.Start(socket =>
         {
             socket.OnError = error =>
