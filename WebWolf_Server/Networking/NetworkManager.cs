@@ -52,12 +52,12 @@ public class NetworkManager
         Console.WriteLine("Disconnected: {0}", clientId);
         var player = PlayerData.GetPlayer(clientId);
         
-        PlayerData.Players.Remove(PlayerData.GetPlayer(clientId));
+        PlayerData.Players.Remove(player);
         ConnectedClients.Remove(clientId);
         
         Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
         
-        if (PlayerData.Players.Count > 0)
+        if (player.IsHost && PlayerData.Players.Count > 0)
             PlayerData.Players[0].SetHost();
     }
 

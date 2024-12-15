@@ -27,6 +27,14 @@ public class PlayerData
         if (Name == null)
             Name = name;
     }
+
+    public void RpcSetHost()
+    {
+        NetworkManager.Instance.Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SetHost, 
+            "{'ID': '" + Id + "'}")));
+        
+        SetHost();
+    }
     
     public void SetHost()
     {
@@ -36,7 +44,5 @@ public class PlayerData
         }
 
         IsHost = true;
-        NetworkManager.Instance.Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SetHost, 
-            "{'ID': '" + Id + "'}")));
     }
 }
