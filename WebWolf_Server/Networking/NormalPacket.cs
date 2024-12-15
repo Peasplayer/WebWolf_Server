@@ -1,5 +1,6 @@
 namespace WebWolf_Server.Networking;
 
+// Normales Datenpaket
 public class NormalPacket : Packet
 {
     public PacketDataType DataType;

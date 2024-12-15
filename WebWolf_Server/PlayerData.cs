@@ -5,8 +5,10 @@ namespace WebWolf_Server;
 
 public class PlayerData
 {
+    // Liste aller Spieler
     public static List<PlayerData> Players = new List<PlayerData>();
 
+    // Findet einen Spieler anhand seiner ID
     public static PlayerData? GetPlayer(string id)
     {
         return Players.Find(player => player.Id == id);
@@ -28,6 +30,7 @@ public class PlayerData
             Name = name;
     }
 
+    // Der Spieler wird bei allen Clients zum Host erklärt
     public void RpcSetHost()
     {
         NetworkManager.Instance.Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SetHost, 

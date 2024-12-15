@@ -8,6 +8,7 @@ class Program
 {
     static void Main(string[] args)
     {
+        // Startet den Websocket-Server auf dem angegebenen Port
         var port = args.Length > 0 ? int.Parse(args[0]) : 8443;
         var net = new NetworkManager();
         net.StartWebsocket(port);

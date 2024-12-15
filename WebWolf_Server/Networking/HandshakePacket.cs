@@ -1,5 +1,6 @@
 namespace WebWolf_Server.Networking;
 
+// Begrüßungspaket
 public class HandshakePacket : Packet
 {
     public string Name;

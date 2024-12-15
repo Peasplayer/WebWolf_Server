@@ -6,8 +6,10 @@ namespace WebWolf_Server.Networking;
 
 public class NetworkManager
 {
+    // Globale Instanz des NetworkManagers
     public static NetworkManager Instance;
     
+    // Liste aller verbundenen Clients
     private Dictionary<string, IWebSocketConnection> ConnectedClients;
 
     public NetworkManager()
@@ -16,9 +18,11 @@ public class NetworkManager
         ConnectedClients = new Dictionary<string, IWebSocketConnection>();
     }
     
+    // Startet den Websocket-Server auf dem angegebenen Port
     public void StartWebsocket(int port)
     {
         var server = new WebSocketServer("ws://0.0.0.0:" + port);
+        // Richtet Ereignisse für den Server ein
         server.Start(socket =>
         {
             socket.OnError = error =>
@@ -35,13 +39,16 @@ public class NetworkManager
         });
     }
     
+    // Wenn ein Client sich verbindet ...
     private void OnOpen(IWebSocketConnection socket)
     {
         var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Connected: {0}", clientId);
 
+        // ... aber die Lobby voll ist ...
         if (PlayerData.Players.Count >= 20)
         {
+            // ... wird der Client getrennt
             socket.Send(JsonConvert.SerializeObject(new SendToPacket("server", PacketDataType.Disconnect,
                 "Lobby ist voll!", clientId)));
             Task.Run(() =>
@@ -55,12 +62,15 @@ public class NetworkManager
             return;
         }
         
+        // ... wird der Client begrüßt
         socket.Send(JsonConvert.SerializeObject(new HandshakePacket("server", clientId)));
         
+        // ... und in die Liste der verbundenen Clients und aller Spieler eingetragen
         PlayerData.Players.Add(new PlayerData(null, clientId));
         ConnectedClients.Add(clientId, socket);
     }
 
+    // Wenn ein Client die Verbindung trennt ...
     private void OnClose(IWebSocketConnection socket)
     {
         var clientId = socket.ConnectionInfo.Id.ToString();
@@ -71,14 +81,18 @@ public class NetworkManager
         if (player == null)
             return;
         
+        // ... wird er aus der Liste der Spieler entfernt
         PlayerData.Players.Remove(player);
         
+        // ... und alle anderen Spieler über sein Verlassen informiert
         Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
         
+        // ... falls der Host das Spiel verlässt, wird der nächste Spieler zum Host
         if (player.IsHost && PlayerData.Players.Count > 0)
             PlayerData.Players[0].SetHost();
     }
 
+    // Verarbeitet eingehende Nachrichten
     private void OnMessage(IWebSocketConnection socket, string message)
     {
         Console.WriteLine("Message: {0}", message);
@@ -93,14 +107,17 @@ public class NetworkManager
                 if (handshake == null)
                     return;
                 
+                // Wenn der Client der einzige Spieler ist, wird er zum Host
                 if (PlayerData.Players.Count == 1)
                 {
                     PlayerData.GetPlayer(handshake.Sender)?.SetHost();
                 }
                 
+                // Namensdopplungen werden verhindert
                 string uniqueName = UniqueName(handshake.Name);
                 PlayerData.GetPlayer(handshake.Sender)?.SetName(uniqueName);
 
+                // Der Client wird über alle Spieler informiert
                 var playerList = "";
                 foreach (var player in PlayerData.Players)
                 {
@@ -109,12 +126,16 @@ public class NetworkManager
                 }
                 SendTo(handshake.Sender, JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.SyncLobby, 
                     "{'Players': [" + playerList + "]}")));
+                
+                // Alle anderen Spieler werden über den neuen Spieler informiert
                 Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Join, 
                     "{'Id': '" + handshake.Sender + "', 'Name': '" + uniqueName + "' }")));
                 break;
+            // Broadcast-Nachricht wird an alle Spieler gesendet
             case PacketType.Broadcast:
                 Broadcast(message);
                 break;
+            // SendTo-Nachricht wird an einen bestimmten Spieler gesendet
             case PacketType.SendTo:
                 var parsedPacket = JsonConvert.DeserializeObject<SendToPacket>(message);
                 if (parsedPacket == null)
@@ -127,6 +148,7 @@ public class NetworkManager
         }
     }
 
+    // Sendet eine Nachricht an alle verbundenen Clients
     public void Broadcast(string message)
     {
         Console.WriteLine("Broadcasting to " + ConnectedClients.Count + " : " + message);
@@ -135,11 +157,13 @@ public class NetworkManager
             var client = ConnectedClients.Values.ToArray()[i];
             if (client.IsAvailable)
                 client.Send(message);
+            // Falls der Client nicht mehr verfügbar ist, wird er entfernt
             else
                 ConnectedClients.Remove(ConnectedClients.Keys.ToArray()[i]);
         }
     }
 
+    // Sendet eine Nachricht an einen bestimmten Client
     public void SendTo(string id, string message)
     {
         var client = ConnectedClients[id];
@@ -149,6 +173,7 @@ public class NetworkManager
             ConnectedClients.Remove(id);
     }
 
+    // Berechnet einen einzigartigen Namen
     private string UniqueName(string name)
     {
         var vorhandeneNamen = PlayerData.Players.Select(p => p.Name).ToList();
@@ -164,6 +189,5 @@ public class NetworkManager
         }
 
         return newName;
-
     }
 }
