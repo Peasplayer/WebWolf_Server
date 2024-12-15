@@ -23,13 +23,12 @@ public class NetworkManager
         {
             socket.OnError = error =>
             {
-                Console.WriteLine("ERROR" + error);
+                Console.WriteLine("Error: " + error.Message);
                 OnClose(socket);
             };
             socket.OnOpen = () => OnOpen(socket);
             socket.OnClose = () =>
             {
-                Console.WriteLine("CLOSE");
                 OnClose(socket);
             };
             socket.OnMessage = message => OnMessage(socket, message);
@@ -40,6 +39,22 @@ public class NetworkManager
     {
         var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Connected: {0}", clientId);
+
+        if (PlayerData.Players.Count >= 20)
+        {
+            socket.Send(JsonConvert.SerializeObject(new SendToPacket("server", PacketDataType.Disconnect,
+                "Lobby ist voll!", clientId)));
+            Task.Run(() =>
+            {
+                Task.Delay(1000).Wait();
+                if (socket.IsAvailable)
+                {
+                    socket.Close(0);
+                }
+            });
+            return;
+        }
+        
         socket.Send(JsonConvert.SerializeObject(new HandshakePacket("server", clientId)));
         
         PlayerData.Players.Add(new PlayerData(null, clientId));
@@ -50,10 +65,13 @@ public class NetworkManager
     {
         var clientId = socket.ConnectionInfo.Id.ToString();
         Console.WriteLine("Disconnected: {0}", clientId);
+        ConnectedClients.Remove(clientId);
+        
         var player = PlayerData.GetPlayer(clientId);
+        if (player == null)
+            return;
         
         PlayerData.Players.Remove(player);
-        ConnectedClients.Remove(clientId);
         
         Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Leave, "{'Id': '" + clientId +"'}")));
         
@@ -75,6 +93,10 @@ public class NetworkManager
                 if (handshake == null)
                     return;
                 
+                if (PlayerData.Players.Count == 1)
+                {
+                    PlayerData.GetPlayer(handshake.Sender)?.SetHost();
+                }
                 
                 string uniqueName = UniqueName(handshake.Name);
                 PlayerData.GetPlayer(handshake.Sender)?.SetName(uniqueName);
@@ -89,10 +111,6 @@ public class NetworkManager
                     "{'Players': [" + playerList + "]}")));
                 Broadcast(JsonConvert.SerializeObject(new NormalPacket("server", PacketDataType.Join, 
                     "{'Id': '" + handshake.Sender + "', 'Name': '" + uniqueName + "' }")));
-                if (PlayerData.Players.Count == 1)
-                {
-                    PlayerData.GetPlayer(handshake.Sender)?.SetHost();
-                }
                 break;
             case PacketType.Broadcast:
                 Broadcast(message);
